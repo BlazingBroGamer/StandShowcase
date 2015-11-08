@@ -1,4 +1,4 @@
-package me.BlazingBroGamer.StandShowcase.event.invenotry;
+package me.BlazingBroGamer.StandShowcase.event.inventory;
 
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -10,12 +10,12 @@ import org.bukkit.inventory.ItemStack;
 
 import me.BlazingBroGamer.StandShowcase.StandShowcase;
 
-public class InvenotryClick implements Listener
+public class InventoryClick implements Listener
 {
 
 	private StandShowcase plugin;
 
-	public InvenotryClick(StandShowcase pl)
+	public InventoryClick(StandShowcase pl)
 	{
 		plugin = pl;
 	}
@@ -24,7 +24,7 @@ public class InvenotryClick implements Listener
 	public void onInvenotryClick(InventoryClickEvent event)
 	{
 		Inventory inv = event.getInventory();
-		if (!inv.getTitle().equals("Custom Invenotry Test"))
+		if (!inv.getTitle().equals("Custom Inventory Test"))
 			return;
 		if (!(event.getWhoClicked() instanceof Player))
 			return;
