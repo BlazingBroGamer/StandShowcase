@@ -1,0 +1,7 @@
+name: StandShowcase
+main: me.BlazingBroGamer.StandShowcase.StandShowcase
+version: 1.0
+commands:
+    sc:
+        description: Show Case Command!
+        aliases: showcase
