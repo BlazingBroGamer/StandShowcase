@@ -12,18 +12,23 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
+import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public class StandShowcase extends JavaPlugin implements Listener{
-	
+import me.BlazingBroGamer.StandShowcase.event.invenotry.InvenotryClick;
+
+public class StandShowcase extends JavaPlugin implements Listener
+{
+
 	List<ArmorStand> armorstands = new ArrayList<ArmorStand>();
 	FileConfiguration fc;
 	Updater u;
 	ArmorData ad;
 	StandListener sd;
-	
+
 	@Override
-	public void onEnable() {
+	public void onEnable()
+	{
 		fc = getConfig();
 		fc.addDefault("Rotation", 5);
 		fc.addDefault("Speed", 1);
@@ -33,36 +38,48 @@ public class StandShowcase extends JavaPlugin implements Listener{
 		u = new Updater(fc.getDouble("Rotation"), fc.getLong("Speed"), this);
 		u.startUpdater();
 		ad = new ArmorData();
-		for(String s : ad.getArmorStands()){
+		for (String s : ad.getArmorStands())
+		{
 			armorstands.add(ad.parseStand(s));
 		}
 		ad.resetArmorData();
 		saveConfig();
 		sd = new StandListener(this);
+		regeisterCommands();
+		regeisterEvents();
 	}
-	
+
 	@Override
-	public void onDisable() {
-		for(ArmorStand as : armorstands){
+	public void onDisable()
+	{
+		for (ArmorStand as : armorstands)
+		{
 			ad.saveArmorData(as);
 			as.remove();
 		}
 	}
-	
+
 	@Override
-	public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-		if(label.equalsIgnoreCase("sc") || label.equalsIgnoreCase("showcase")){
-			if(!sender.hasPermission("standshowcase.admin")){
+	public boolean onCommand(CommandSender sender, Command command, String label, String[] args)
+	{
+		if (label.equalsIgnoreCase("sc") || label.equalsIgnoreCase("showcase"))
+		{
+			if (!sender.hasPermission("standshowcase.admin"))
+			{
 				sender.sendMessage("§cYou do not have permissions to use this command!");
 				return false;
 			}
-			if(args.length >= 3){
-				if(args[0].equalsIgnoreCase("create")){
-					Player p = (Player)sender;
+			if (args.length >= 3)
+			{
+				if (args[0].equalsIgnoreCase("create"))
+				{
+					Player p = (Player) sender;
 					String name = "";
 					int i = 0;
-					for(String s : args){
-						if(i > 1){
+					for (String s : args)
+					{
+						if (i > 1)
+						{
 							name += s + " ";
 						}
 						i++;
@@ -71,7 +88,8 @@ public class StandShowcase extends JavaPlugin implements Listener{
 					name = ChatColor.translateAlternateColorCodes('&', name);
 					String[] itemdata = args[1].split(":");
 					Material m = Material.matchMaterial(itemdata[0]);
-					if(!m.isBlock()){
+					if (!m.isBlock())
+					{
 						sender.sendMessage(ChatColor.RED + "The item must be a block!");
 						return true;
 					}
@@ -80,12 +98,17 @@ public class StandShowcase extends JavaPlugin implements Listener{
 					armorstands.add(new StandGenerator(loc, m, Short.parseShort(itemdata[1]), name).getStand());
 					return true;
 				}
-			}else if(args.length == 1){
-				if(args[0].equalsIgnoreCase("delete")){
+			}
+			else if (args.length == 1)
+			{
+				if (args[0].equalsIgnoreCase("delete"))
+				{
 					sender.sendMessage(ChatColor.GREEN + "Right click the armor stand you want to delete!");
-					sd.delete.add((Player)sender);
+					sd.delete.add((Player) sender);
 					return true;
-				}else if(args[0].equalsIgnoreCase("reload")){
+				}
+				else if (args[0].equalsIgnoreCase("reload"))
+				{
 					reloadConfig();
 					fc = getConfig();
 					u.rotation = fc.getDouble("Rotation");
@@ -94,8 +117,11 @@ public class StandShowcase extends JavaPlugin implements Listener{
 					sender.sendMessage(ChatColor.GREEN + "Successfully reloaded the configuration!");
 					return true;
 				}
-			}else if(args.length == 2){
-				if(args[0].equalsIgnoreCase("speed")){
+			}
+			else if (args.length == 2)
+			{
+				if (args[0].equalsIgnoreCase("speed"))
+				{
 					int i = Integer.parseInt(args[1]);
 					u.speed = i;
 					u.restartUpdater();
@@ -103,7 +129,9 @@ public class StandShowcase extends JavaPlugin implements Listener{
 					saveConfig();
 					sender.sendMessage(ChatColor.GREEN + "Successfully set the speed to " + i + "!");
 					return true;
-				}else if(args[0].equalsIgnoreCase("rotation")){
+				}
+				else if (args[0].equalsIgnoreCase("rotation"))
+				{
 					double d = Double.parseDouble(args[1]);
 					u.rotation = d;
 					u.restartUpdater();
@@ -116,5 +144,17 @@ public class StandShowcase extends JavaPlugin implements Listener{
 		}
 		return false;
 	}
-	
+
+	public void regeisterEvents()
+	{
+		PluginManager pm = getServer().getPluginManager();
+
+		pm.registerEvents(new InvenotryClick(this), this);
+	}
+
+	public void regeisterCommands()
+	{
+		getCommand("gui").setExecutor(new gui());
+	}
+
 }
