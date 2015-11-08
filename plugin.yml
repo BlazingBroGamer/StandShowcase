@@ -5,3 +5,5 @@ commands:
     sc:
         description: Show Case Command!
         aliases: showcase
+    gui:
+        description: GUI Test Command!
