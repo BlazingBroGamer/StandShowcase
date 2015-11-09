@@ -3,7 +3,6 @@ package me.BlazingBroGamer.StandShowcase;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -13,9 +12,6 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class StandShowcase extends JavaPlugin implements Listener{
@@ -76,12 +72,16 @@ public class StandShowcase extends JavaPlugin implements Listener{
                     name = ChatColor.translateAlternateColorCodes('&', name);
                     String[] itemdata = args[1].split(":");
                     Material m = Material.matchMaterial(itemdata[0]);
-                    if(!m.isBlock()){
-                        sender.sendMessage(ChatColor.RED + "The item must be a block!");
+                    if(!m.isBlock() && !m.name().contains("HELMET")){
+                        sender.sendMessage(ChatColor.RED + "The item must be a block or helmet!");
                         return true;
                     }
                     loc.setY(loc.getY() - 1);
-                    armorstands.add(new StandGenerator(loc, m, Short.parseShort(itemdata[1]), name).getStand());
+                    short data = 0;
+                    if(itemdata.length == 2){
+                        data = Short.parseShort(itemdata[1]);
+                    }
+                    armorstands.add(new StandGenerator(loc, m, data, name).getStand());
                     return true;
                 }
             }else if(args.length == 1){
@@ -104,13 +104,6 @@ public class StandShowcase extends JavaPlugin implements Listener{
                 }else if(args[0].equalsIgnoreCase("deleteall")){
                     u.deletAll();
                     sender.sendMessage(ChatColor.GREEN + "Successfully deleted all armor stands!");
-                    return true;
-                }else if(args[0].equalsIgnoreCase("gui")){
-                    Player player = (Player) sender;
-                    Inventory inv = Bukkit.createInventory(null, 9, "Custom Inventory Test");
-                    ItemStack spawnitem = getNamedItem(Material.COMPASS, ChatColor.AQUA + "Teleport To Spawn");
-                    inv.setItem(4, spawnitem);
-                    player.openInventory(inv);
                     return true;
                 }
             }else if(args.length == 2){
@@ -141,14 +134,6 @@ public class StandShowcase extends JavaPlugin implements Listener{
             sender.sendMessage("§0§l/§asc §crotation §0[§cRotation§0]");
         }
         return false;
-    }
-    
-    public ItemStack getNamedItem(Material m, String name){
-        ItemStack is = new ItemStack(m);
-        ItemMeta im = is.getItemMeta();
-        im.setDisplayName(ChatColor.translateAlternateColorCodes('&', name));
-        is.setItemMeta(im);
-        return is;
     }
     
 }
