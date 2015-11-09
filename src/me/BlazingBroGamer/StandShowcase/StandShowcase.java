@@ -12,6 +12,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class StandShowcase extends JavaPlugin implements Listener{
@@ -34,7 +35,9 @@ public class StandShowcase extends JavaPlugin implements Listener{
         u.startUpdater();
         ad = new ArmorData();
         for(String s : ad.getArmorStands()){
-            armorstands.add(ad.parseStand(s));
+            ArmorStand as = ad.parseStand(s);
+            if(as != null)
+                armorstands.add(as);
         }
         ad.resetArmorData();
         saveConfig();
@@ -62,6 +65,7 @@ public class StandShowcase extends JavaPlugin implements Listener{
                     String name = "";
                     int i = 0;
                     Location loc = p.getLocation();
+                    loc.setY(loc.getY() - 1);
                     for(String s : args){
                         if(i > 1){
                             name += s + " ";
@@ -70,18 +74,33 @@ public class StandShowcase extends JavaPlugin implements Listener{
                     }
                     name = name.substring(0, name.length() - 1);
                     name = ChatColor.translateAlternateColorCodes('&', name);
-                    String[] itemdata = args[1].split(":");
-                    Material m = Material.matchMaterial(itemdata[0]);
-                    if(!m.isBlock() && !m.name().contains("HELMET")){
-                        sender.sendMessage(ChatColor.RED + "The item must be a block or helmet!");
-                        return true;
+                    if(args[1].equalsIgnoreCase("hand")){
+                        ItemStack is = ((Player)sender).getItemInHand();
+                        if(is == null)
+                            is = new ItemStack(Material.AIR);
+                        Material m = is.getType();
+                        if(!m.isBlock() && !m.name().contains("HELMET") && m != Material.SKULL_ITEM){
+                            sender.sendMessage(ChatColor.RED + "The item must be a block or helmet or skull!");
+                            return true;
+                        }
+                        armorstands.add(new StandGenerator(loc, ((Player)sender).getItemInHand(), name).getStand());
+                    }else{
+                        String[] itemdata = args[1].split(":");
+                        Material m = Material.matchMaterial(itemdata[0]);
+                        if(m == null){
+                            sender.sendMessage(ChatColor.RED + "Invalid item name!");
+                            return true;
+                        }
+                        if(!m.isBlock() && !m.name().contains("HELMET")){
+                            sender.sendMessage(ChatColor.RED + "The item must be a block or helmet!");
+                            return true;
+                        }
+                        short data = 0;
+                        if(itemdata.length == 2){
+                            data = Short.parseShort(itemdata[1]);
+                        }
+                        armorstands.add(new StandGenerator(loc, m, data, name).getStand());
                     }
-                    loc.setY(loc.getY() - 1);
-                    short data = 0;
-                    if(itemdata.length == 2){
-                        data = Short.parseShort(itemdata[1]);
-                    }
-                    armorstands.add(new StandGenerator(loc, m, data, name).getStand());
                     return true;
                 }
             }else if(args.length == 1){
@@ -126,7 +145,7 @@ public class StandShowcase extends JavaPlugin implements Listener{
                 }
             }
             sender.sendMessage("§6========§0[§aStand Showcase§0]§6========");
-            sender.sendMessage("§0§l/§asc §ccreate §0[§cItemName§0:§cData§0] §0[§cName§0]");
+            sender.sendMessage("§0§l/§asc §ccreate §0[§cItemName§6:§cData§0] §0[§cName§0]");
             sender.sendMessage("§0§l/§asc §cdelete");
             sender.sendMessage("§0§l/§asc §cdeleteall");
             sender.sendMessage("§0§l/§asc §calign");
