@@ -10,6 +10,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
+import org.bukkit.inventory.ItemStack;
 
 public class StandListener implements Listener{
 	
@@ -31,8 +32,18 @@ public class StandListener implements Listener{
 				if(delete.contains(e.getPlayer())){
 					delete.remove(e.getPlayer());
 					plugin.armorstands.remove(as);
+					plugin.standid.remove(as);
 					as.remove();
 					e.getPlayer().sendMessage(ChatColor.GREEN + "Successfully deleted showcasing armorstand!");
+				}else if(plugin.slideadd.containsKey(e.getPlayer())){
+					ItemStack add = plugin.slideadd.get(e.getPlayer());
+					plugin.slideadd.remove(e.getPlayer());
+					plugin.p.addSlide(as, add);
+					e.getPlayer().sendMessage(ChatColor.GREEN + "Successfully added slide to the showcasing armorstand!");
+				}else{
+					int nextslide = plugin.p.getNextSlide(as);
+					plugin.p.setSlide(as, nextslide);
+					as.setHelmet(plugin.p.getSlideItem(as));
 				}
 				return;
 			}

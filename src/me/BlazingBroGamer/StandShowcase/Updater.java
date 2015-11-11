@@ -1,5 +1,8 @@
 package me.BlazingBroGamer.StandShowcase;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.bukkit.Bukkit;
 import org.bukkit.entity.ArmorStand;
 
@@ -10,6 +13,7 @@ public class Updater {
 	double crotation;
 	long speed;
 	StandShowcase plugin;
+	boolean started = true;
 	
 	public Updater(double rotation, long speed, StandShowcase plugin){
 		this.rotation = rotation;
@@ -23,6 +27,8 @@ public class Updater {
 
 			@Override
 			public void run() {
+				if(!started)
+					return;
 				crotation += rotation/100;
 				if(crotation >= 360)
 					crotation -= 360;
@@ -41,6 +47,25 @@ public class Updater {
 		for(ArmorStand as : plugin.armorstands){
 			as.setHeadPose(as.getHeadPose().setY(crotation));
 		}
+	}
+	
+	public void alignDirections(){
+		List<String> armors = new ArrayList<String>();
+		for(ArmorStand as : plugin.armorstands){
+			armors.add(plugin.ad.formatStand(as));
+			as.remove();
+		}
+		plugin.armorstands.clear();
+		for(String s : armors){
+			plugin.armorstands.add(plugin.ad.parseStand(s));
+		}
+	}
+	
+	public void deletAll(){
+		for(ArmorStand as : plugin.armorstands){
+			as.remove();
+		}
+		plugin.armorstands.clear();
 	}
 	
 }
