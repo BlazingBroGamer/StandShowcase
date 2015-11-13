@@ -3,6 +3,7 @@ package me.BlazingBroGamer.StandShowcase;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.UUID;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -21,6 +22,8 @@ public class StandShowcase extends JavaPlugin implements Listener{
 	List<ArmorStand> armorstands = new ArrayList<ArmorStand>();
 	HashMap<ArmorStand, Integer> standid = new HashMap<ArmorStand, Integer>();
 	HashMap<Player, ItemStack> slideadd = new HashMap<Player, ItemStack>();
+	HashMap<Player, String> commandadd = new HashMap<Player, String>();
+	HashMap<UUID, Integer> despawned = new HashMap<UUID, Integer>();
 	FileConfiguration fc;
 	Updater u;
 	ArmorData ad;
@@ -48,6 +51,7 @@ public class StandShowcase extends JavaPlugin implements Listener{
 				if(as != null){
 					armorstands.add(as);
 					standid.put(as, i);
+					as.setRemoveWhenFarAway(false);
 				}
 				i--;
 			}
@@ -94,10 +98,28 @@ public class StandShowcase extends JavaPlugin implements Listener{
 					if(is == null)
 						return true;
 					ArmorStand as = new StandGenerator(loc, is, name).getStand();
+					as.setRemoveWhenFarAway(false);
 					armorstands.add(as);
 					standid.put(as, armorstands.size());
 					ad.addSlideItem(is, armorstands.size());
 					sender.sendMessage(ChatColor.GREEN + "Successfully created a stand showcase!");
+					return true;
+				}else if(args[0].equalsIgnoreCase("addcommand")){
+					String cmdsender = args[1];
+					if(!cmdsender.equalsIgnoreCase("player") && !cmdsender.equalsIgnoreCase("console")){
+						cmdsender = "console";
+					}
+					String addcmd = cmdsender.toLowerCase() + " ";
+					int i = 0;
+					for(String s : args){
+						if(i >= 2){
+							addcmd += s + " ";
+						}
+						i++;
+					}
+					addcmd = addcmd.substring(0, addcmd.length());
+					commandadd.put((Player)sender, addcmd);
+					sender.sendMessage(ChatColor.GREEN + "Right click the stand you want to add the command to!");
 					return true;
 				}
 			}else if(args.length == 1){
@@ -161,8 +183,14 @@ public class StandShowcase extends JavaPlugin implements Listener{
 			sender.sendMessage("§0§l/§asc §calign");
 			sender.sendMessage("§0§l/§asc §cspeed §0[§cSpeed§0]");
 			sender.sendMessage("§0§l/§asc §crotation §0[§cRotation§0]");
+			sender.sendMessage("§0§l/§asc §caddslide §0[§cItemName§6:§cData§0]§6/§0hand");
+			sender.sendMessage("§0§l/§asc §caddcommand §0Player§6/§0Console §0[§cCommand§0]");
 		}
 		return false;
+	}
+	
+	public int getStandID(ArmorStand as){
+		return standid.get(as);
 	}
 	
 	public ItemStack getItem(String arg, Player p){

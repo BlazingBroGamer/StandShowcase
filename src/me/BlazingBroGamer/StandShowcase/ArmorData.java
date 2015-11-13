@@ -20,6 +20,8 @@ public class ArmorData {
 	File f;
 	FileConfiguration fc;
 	HashMap<Integer, List<String>> slides = new HashMap<Integer, List<String>>();
+	HashMap<Integer, List<String>> commands = new HashMap<Integer, List<String>>();
+	HashMap<Integer, StandType> standtype = new HashMap<Integer, StandType>();
 	
 	public ArmorData() {
 		f = new File("data-storage/StandShowcase/ArmorData.yml");
@@ -47,6 +49,10 @@ public class ArmorData {
 		List<String> saved = slides.get(id + 1);
 		saved.remove(0);
 		fc.set(section + ".Slides", saved);
+		fc.set(section + ".Commands", commands.get(id + 1));
+		StandType st = standtype.get(id + 1);
+		if(st != null)
+			fc.set(section + ".Type", st.name());
 		saveConfig();
 	}
 	
@@ -61,6 +67,26 @@ public class ArmorData {
 			items.add(parseItem(s));
 		}
 		return items;
+	}
+	
+	public void setType(int id, StandType type){
+		standtype.put(id, type);
+	}
+	
+	public StandType getType(int id){
+		return standtype.get(id);
+	}
+	
+	public List<String> getCommands(int id){
+		return commands.get(id);
+	}
+	
+	public void addCommand(int id, String cmd){
+		List<String> cmds = getCommands(id);
+		if(cmds == null)
+			cmds = new ArrayList<String>();
+		cmds.add(cmd);
+		commands.put(id, cmds);
 	}
 	
 	public ItemStack parseItem(String s){
@@ -119,10 +145,16 @@ public class ArmorData {
 		Location loc = new Location(Bukkit.getWorld(world), x, y, z);
 		String[] itemdata = fc.getString(section + ".ItemData").split(":");
 		String name = fc.getString(section + ".Name");
+		StandType type = StandType.matchType(fc.getString(section + ".Type"));
 		addSlideItem(parseItem(fc.getString(section + ".ItemData")), id);
-		for(String s : fc.getStringList("ArmorStands." + id + ".Slides")){
-			addSlideItem(parseItem(s), id);
+		if(type == StandType.COMMAND){
+			commands.put(id, fc.getStringList(section + ".Commands"));
+		}else if(type == StandType.SLIDES){
+			for(String s : fc.getStringList("ArmorStands." + id + ".Slides")){
+				addSlideItem(parseItem(s), id);
+			}
 		}
+		setType(id, type);
 		return new StandGenerator(loc, Material.matchMaterial(itemdata[0]), Short.parseShort(itemdata[1])
 				, name).getStand();
 	}
