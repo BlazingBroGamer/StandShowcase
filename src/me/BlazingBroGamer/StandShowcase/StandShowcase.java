@@ -13,51 +13,47 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Player;
-import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public class StandShowcase extends JavaPlugin implements Listener{
+public class StandShowcase extends JavaPlugin {
 	
 	List<ArmorStand> armorstands = new ArrayList<ArmorStand>();
 	HashMap<ArmorStand, Integer> standid = new HashMap<ArmorStand, Integer>();
-	HashMap<Player, ItemStack> slideadd = new HashMap<Player, ItemStack>();
-	HashMap<Player, String> commandadd = new HashMap<Player, String>();
 	HashMap<UUID, Integer> despawned = new HashMap<UUID, Integer>();
 	FileConfiguration fc;
 	Updater u;
 	ArmorData ad;
-	StandListener sd;
+	StandListener sl;
 	Presenter p;
-	static StandShowcase instance;
+	StandGUI gui;
 	
+	@SuppressWarnings("unused")
 	@Override
 	public void onEnable() {
-		instance = this;
 		fc = getConfig();
 		fc.addDefault("Rotation", 5);
 		fc.addDefault("Speed", 1);
 		fc.options().copyDefaults(true);
 		saveConfig();
-		getServer().getPluginManager().registerEvents(this, this);
 		u = new Updater(fc.getDouble("Rotation"), fc.getLong("Speed"), this);
 		u.startUpdater();
 		ad = new ArmorData();
 		List<String> armorstand = ad.getArmorStands();
 		if(armorstand != null){
-			int i = armorstand.size();
-			while(i > 0){
+			int i = 1;
+			for(String s : armorstand){
 				ArmorStand as = ad.parseStand(i);
 				if(as != null){
 					armorstands.add(as);
 					standid.put(as, i);
-					as.setRemoveWhenFarAway(false);
 				}
-				i--;
+				i++;
 			}
 		}
 		saveConfig();
-		sd = new StandListener(this);
+		gui = new StandGUI(this);
+		sl = new StandListener(this);
 		p = new Presenter(this);
 	}
 	
@@ -77,6 +73,10 @@ public class StandShowcase extends JavaPlugin implements Listener{
 		if(label.equalsIgnoreCase("sc") || label.equalsIgnoreCase("showcase")){
 			if(!sender.hasPermission("standshowcase.admin")){
 				sender.sendMessage("§cYou do not have permissions to use this command!");
+				return false;
+			}
+			if(!(sender instanceof Player)){
+				sender.sendMessage("§cYou need to be a player to use this command!");
 				return false;
 			}
 			if(args.length >= 3){
@@ -118,14 +118,14 @@ public class StandShowcase extends JavaPlugin implements Listener{
 						i++;
 					}
 					addcmd = addcmd.substring(0, addcmd.length());
-					commandadd.put((Player)sender, addcmd);
+					sl.commandadd.put((Player)sender, addcmd);
 					sender.sendMessage(ChatColor.GREEN + "Right click the stand you want to add the command to!");
 					return true;
 				}
 			}else if(args.length == 1){
 				if(args[0].equalsIgnoreCase("delete")){
 					sender.sendMessage(ChatColor.GREEN + "Right click the armor stand you want to delete!");
-					sd.delete.add((Player)sender);
+					sl.delete.add((Player)sender);
 					return true;
 				}else if(args[0].equalsIgnoreCase("reload")){
 					reloadConfig();
@@ -151,6 +151,18 @@ public class StandShowcase extends JavaPlugin implements Listener{
 					u.started = true;
 					sender.sendMessage(ChatColor.GREEN + "Successfully resumed all showcase movements!");
 					return true;
+				}else if(args[0].equalsIgnoreCase("resetcommands")){
+					sender.sendMessage(ChatColor.GREEN + "Right click the stand you want to reset the slide on!");
+					sl.resetcmd.add((Player)sender);
+					return true;
+				}else if(args[0].equalsIgnoreCase("resetslides")){
+					sender.sendMessage(ChatColor.GREEN + "Right click the stand you want to reset the commands on!");
+					sl.resetslide.add((Player)sender);
+					return true;
+				}else if(args[0].equalsIgnoreCase("slidegui")){
+					sender.sendMessage(ChatColor.GREEN + "Right click the stand you want to open the slide gui on!");
+					sl.slidegui.add((Player)sender);
+					return true;
 				}
 			}else if(args.length == 2){
 				if(args[0].equalsIgnoreCase("speed")){
@@ -171,7 +183,7 @@ public class StandShowcase extends JavaPlugin implements Listener{
 					return true;
 				}else if(args[0].equalsIgnoreCase("addslide")){
 					ItemStack is = getItem(args[1], (Player)sender);
-					slideadd.put((Player)sender, is);
+					sl.slideadd.put((Player)sender, is);
 					sender.sendMessage(ChatColor.GREEN + "Right click the stand you want to add the slide to!");
 					return true;
 				}
@@ -183,8 +195,10 @@ public class StandShowcase extends JavaPlugin implements Listener{
 			sender.sendMessage("§0§l/§asc §calign");
 			sender.sendMessage("§0§l/§asc §cspeed §0[§cSpeed§0]");
 			sender.sendMessage("§0§l/§asc §crotation §0[§cRotation§0]");
-			sender.sendMessage("§0§l/§asc §caddslide §0[§cItemName§6:§cData§0]§6/§0hand");
-			sender.sendMessage("§0§l/§asc §caddcommand §0Player§6/§0Console §0[§cCommand§0]");
+			sender.sendMessage("§0§l/§asc §caddslide §0[§cItemName§6:§cData§6/§chand§0]");
+			sender.sendMessage("§0§l/§asc §caddcommand §0[§cPlayer§6/§cConsole0] §0[§cCommand§0]");
+			sender.sendMessage("§0§l/§asc §cresetslides");
+			sender.sendMessage("§0§l/§asc §cresetcommands");
 		}
 		return false;
 	}

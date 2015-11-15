@@ -59,8 +59,12 @@ public class Updater {
 			as.remove();
 		}
 		plugin.armorstands.clear();
+		int i = 1;
 		for(String s : armors){
-			plugin.armorstands.add(plugin.ad.parseStand(s));
+			ArmorStand as = plugin.ad.parseStand(s, i);
+			plugin.armorstands.add(as);
+			plugin.standid.put(as, i);
+			i++;
 		}
 	}
 	

@@ -14,6 +14,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.SkullMeta;
 
 public class ArmorData {
 	
@@ -38,6 +39,7 @@ public class ArmorData {
 	
 	public void saveArmorData(ArmorStand as, int id){
 		Location loc = as.getLocation();
+		as.remove();
 		String section = "ArmorStands." + (id + 1);
 		fc.set(section + ".X", loc.getX());
 		fc.set(section + ".Y", loc.getY());
@@ -54,6 +56,19 @@ public class ArmorData {
 		if(st != null)
 			fc.set(section + ".Type", st.name());
 		saveConfig();
+	}
+	
+	public void error(){
+		
+	}
+	
+	public String formatItem(ItemStack is){
+		String data = is.getType().name() + ":" + is.getDurability();
+		if(is.getType() == Material.SKULL_ITEM){
+			SkullMeta sm = (SkullMeta)is.getItemMeta();
+			data += ":" + sm.getOwner();
+		}
+		return data;
 	}
 	
 	public List<String> getSlides(int id){
@@ -93,6 +108,13 @@ public class ArmorData {
 		String[] itemdata = s.split(":");
 		ItemStack is = new ItemStack(Material.matchMaterial(itemdata[0]));
 		is.setDurability(Short.parseShort(itemdata[1]));
+		if(is.getType() == Material.SKULL_ITEM){
+			if(itemdata.length != 2){
+				SkullMeta sm = (SkullMeta)is.getItemMeta();
+				sm.setOwner(itemdata[2]);
+				is.setItemMeta(sm);
+			}
+		}
 		return is;
 	}
 	
@@ -100,7 +122,7 @@ public class ArmorData {
 		List<String> slides = getSlides(id);
 		if(slides == null)
 			slides = new ArrayList<String>();
-		slides.add(is.getType().name() + ":" + is.getDurability());
+		slides.add(formatItem(is));
 		this.slides.put(id, slides);
 	}
 	
@@ -119,18 +141,16 @@ public class ArmorData {
 		double y = loc.getY();
 		double z = loc.getZ();
 		String world = loc.getWorld().getName();
-		String itemdata = as.getHelmet().getType().name() + ":" + as.getHelmet().getDurability();
-		return x + "," + y + "," + z + "," + world + "=" + itemdata + "=" + as.getCustomName();
+		return x + "," + y + "," + z + "," + world + "=" + as.getCustomName();
 	}
 	
-	public ArmorStand parseStand(String s){
+	public ArmorStand parseStand(String s, int id){
 		String[] data = s.split("=");
 		String[] locdata = data[0].split(",");
-		String[] itemdata = data[1].split(":");
 		Location loc = new Location(Bukkit.getWorld(locdata[3]), 
 				Double.parseDouble(locdata[0]), Double.parseDouble(locdata[1]), Double.parseDouble(locdata[2]));
-		return new StandGenerator(loc, Material.matchMaterial(itemdata[0]), Short.parseShort(itemdata[1])
-				, data[2]).getStand();
+		return new StandGenerator(loc, parseItem(slides.get(id).get(0))
+				, data[1]).getStand();
 	}
 	
 	public ArmorStand parseStand(int id){
@@ -143,10 +163,10 @@ public class ArmorData {
 			return null;
 		}
 		Location loc = new Location(Bukkit.getWorld(world), x, y, z);
-		String[] itemdata = fc.getString(section + ".ItemData").split(":");
 		String name = fc.getString(section + ".Name");
 		StandType type = StandType.matchType(fc.getString(section + ".Type"));
-		addSlideItem(parseItem(fc.getString(section + ".ItemData")), id);
+		ItemStack is = parseItem(fc.getString(section + ".ItemData"));
+		addSlideItem(is, id);
 		if(type == StandType.COMMAND){
 			commands.put(id, fc.getStringList(section + ".Commands"));
 		}else if(type == StandType.SLIDES){
@@ -155,7 +175,7 @@ public class ArmorData {
 			}
 		}
 		setType(id, type);
-		return new StandGenerator(loc, Material.matchMaterial(itemdata[0]), Short.parseShort(itemdata[1])
+		return new StandGenerator(loc, is
 				, name).getStand();
 	}
 	
