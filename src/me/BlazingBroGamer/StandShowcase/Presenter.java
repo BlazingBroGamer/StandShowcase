@@ -23,7 +23,7 @@ public class Presenter {
 			cstandslide.put(as, 0);
 		}
 		int next = cstandslide.get(as) + 1;
-		if(next >= plugin.ad.getSlides(plugin.standid.get(as)).size()){
+		if(next >= plugin.ad.getSlides(plugin.getStandID(as)).size()){
 			return 0;
 		}else{
 			return next;

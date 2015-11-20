@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -23,10 +24,12 @@ public class ArmorData {
 	HashMap<Integer, List<String>> slides = new HashMap<Integer, List<String>>();
 	HashMap<Integer, List<String>> commands = new HashMap<Integer, List<String>>();
 	HashMap<Integer, StandType> standtype = new HashMap<Integer, StandType>();
+	StandShowcase plugin;
 	
-	public ArmorData() {
+	public ArmorData(StandShowcase plugin) {
 		f = new File("data-storage/StandShowcase/ArmorData.yml");
 		fc = YamlConfiguration.loadConfiguration(f);
+		this.plugin = plugin;
 	}
 	
 	public void saveConfig(){
@@ -39,30 +42,25 @@ public class ArmorData {
 	
 	public void saveArmorData(ArmorStand as, int id){
 		Location loc = as.getLocation();
-		as.remove();
-		String section = "ArmorStands." + (id + 1);
+		String section = "ArmorStands." + (id);
 		fc.set(section + ".X", loc.getX());
 		fc.set(section + ".Y", loc.getY());
 		fc.set(section + ".Z", loc.getZ());
 		fc.set(section + ".World", loc.getWorld().getName());
-		String itemdata = slides.get(id + 1).get(0);
-		fc.set(section + ".ItemData", itemdata);
-		fc.set(section + ".Name", as.getCustomName());
-		List<String> saved = slides.get(id + 1);
-		saved.remove(0);
-		fc.set(section + ".Slides", saved);
-		fc.set(section + ".Commands", commands.get(id + 1));
-		StandType st = standtype.get(id + 1);
+		fc.set(section + ".Slides", getSlides(id));
+		fc.set(section + ".Commands", commands.get(id));
+		fc.set(section + ".UUID", plugin.getUniqueId(id).toString());
+		StandType st = standtype.get(id);
 		if(st != null)
 			fc.set(section + ".Type", st.name());
 		saveConfig();
 	}
 	
-	public void error(){
-		
-	}
-	
 	public String formatItem(ItemStack is){
+		if(is == null){
+			plugin.debugWarning("Failed while trying to format item!");
+			return null;
+		}
 		String data = is.getType().name() + ":" + is.getDurability();
 		if(is.getType() == Material.SKULL_ITEM){
 			SkullMeta sm = (SkullMeta)is.getItemMeta();
@@ -72,7 +70,8 @@ public class ArmorData {
 	}
 	
 	public List<String> getSlides(int id){
-		return slides.get(id);
+		List<String> slides = this.slides.get(id);
+		return slides;
 	}
 	
 	public List<ItemStack> getItemSlides(int id){
@@ -153,7 +152,11 @@ public class ArmorData {
 				, data[1]).getStand();
 	}
 	
-	public ArmorStand parseStand(int id){
+	public UUID parseUUID(int id){
+		return UUID.fromString(fc.getString("ArmorStands." + id + ".UUID"));
+	}
+	
+	public Location parseLocation(int id){
 		String section = "ArmorStands." + id;
 		double x = fc.getDouble(section + ".X");
 		double y = fc.getDouble(section + ".Y");
@@ -163,20 +166,7 @@ public class ArmorData {
 			return null;
 		}
 		Location loc = new Location(Bukkit.getWorld(world), x, y, z);
-		String name = fc.getString(section + ".Name");
-		StandType type = StandType.matchType(fc.getString(section + ".Type"));
-		ItemStack is = parseItem(fc.getString(section + ".ItemData"));
-		addSlideItem(is, id);
-		if(type == StandType.COMMAND){
-			commands.put(id, fc.getStringList(section + ".Commands"));
-		}else if(type == StandType.SLIDES){
-			for(String s : fc.getStringList("ArmorStands." + id + ".Slides")){
-				addSlideItem(parseItem(s), id);
-			}
-		}
-		setType(id, type);
-		return new StandGenerator(loc, is
-				, name).getStand();
+		return loc;
 	}
 	
 	public List<String> getArmorStands(){

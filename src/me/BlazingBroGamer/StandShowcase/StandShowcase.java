@@ -4,68 +4,123 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.logging.Logger;
 
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class StandShowcase extends JavaPlugin {
 	
-	List<ArmorStand> armorstands = new ArrayList<ArmorStand>();
 	HashMap<ArmorStand, Integer> standid = new HashMap<ArmorStand, Integer>();
-	HashMap<UUID, Integer> despawned = new HashMap<UUID, Integer>();
+	HashMap<ArmorStand, Integer> despawned = new HashMap<ArmorStand, Integer>();
+	HashMap<Integer, UUID> standuuid = new HashMap<Integer, UUID>();
+	List<ArmorStand> armorstands = new ArrayList<ArmorStand>();
 	FileConfiguration fc;
 	Updater u;
 	ArmorData ad;
 	StandListener sl;
 	Presenter p;
 	StandGUI gui;
+	Logger pluginlogger;
+	boolean debug;
+	boolean activate = false;
+	static StandShowcase ss;
 	
-	@SuppressWarnings("unused")
 	@Override
 	public void onEnable() {
+		ss = this;
+		pluginlogger = getLogger();
 		fc = getConfig();
 		fc.addDefault("Rotation", 5);
 		fc.addDefault("Speed", 1);
+		fc.addDefault("Sounds", "Click");
+		fc.addDefault("Debug", true);
 		fc.options().copyDefaults(true);
 		saveConfig();
+		debug = fc.getBoolean("Debug");
 		u = new Updater(fc.getDouble("Rotation"), fc.getLong("Speed"), this);
 		u.startUpdater();
-		ad = new ArmorData();
-		List<String> armorstand = ad.getArmorStands();
-		if(armorstand != null){
-			int i = 1;
-			for(String s : armorstand){
-				ArmorStand as = ad.parseStand(i);
-				if(as != null){
-					armorstands.add(as);
-					standid.put(as, i);
-				}
-				i++;
-			}
-		}
+		ad = new ArmorData(this);
 		saveConfig();
 		gui = new StandGUI(this);
 		sl = new StandListener(this);
 		p = new Presenter(this);
+		debugInfo("Loading available showcase stands...");
+		loadDefaultStands();
+		debugInfo("Finished loading showcase stands!");
+	}
+	
+	public void loadDefaultStands(){
+		List<String> armorstand = ad.getArmorStands();
+		if(armorstand != null){
+			for(String s : armorstand){
+				int i = Integer.parseInt(s);
+				debugInfo("Loading stand with ID: " + i);
+				UUID id = ad.parseUUID(i);
+				Location loc = ad.parseLocation(i);
+				Chunk chunk = loc.getChunk();
+				chunk.load();
+				boolean changed = false;
+				ArmorStand as = null;
+				for(Entity e : chunk.getEntities()){
+					if(e instanceof ArmorStand){
+						if(e.getUniqueId().equals(id)){
+							as = (ArmorStand)e;
+							armorstands.add(as);
+							standid.put(as, i);
+							standuuid.put(i, id);
+							ad.addSlideItem(as.getHelmet(), i);
+							changed = true;
+						}
+					}
+				}
+				if(!changed)
+					return;
+				if(chunk.unload(true, true)){
+					despawned.put(as, i);
+					armorstands.remove(as);
+				}
+			}
+		}
+	}
+	
+	public void debugWarning(String msg){
+		Bukkit.getConsoleSender().sendMessage("[StandShowcase] §4Warning: §r" + msg);
+	}
+	
+	public void debugInfo(String msg){
+		if(debug)
+			Bukkit.getConsoleSender().sendMessage("[StandShowcase] " + msg);
 	}
 	
 	@Override
 	public void onDisable() {
+		debugInfo("Saving showcasing stands...");
 		ad.resetArmorData();
-		int i = 0;
+		int i = 1;
 		for(ArmorStand as : armorstands){
+			debugInfo("Saving stand with ID: " + i);
 			ad.saveArmorData(as, i);
-			as.remove();
 			i++;
 		}
+		for(ArmorStand as : despawned.keySet()){
+			debugInfo("Saving stand with ID: " + i);
+			ad.saveArmorData(as, i);
+			i++;
+		}
+		debugInfo("Finished saving showcasing stands!");
 	}
 	
 	@Override
@@ -98,10 +153,10 @@ public class StandShowcase extends JavaPlugin {
 					if(is == null)
 						return true;
 					ArmorStand as = new StandGenerator(loc, is, name).getStand();
-					as.setRemoveWhenFarAway(false);
 					armorstands.add(as);
 					standid.put(as, armorstands.size());
 					ad.addSlideItem(is, armorstands.size());
+					standuuid.put(armorstands.size(), as.getUniqueId());
 					sender.sendMessage(ChatColor.GREEN + "Successfully created a stand showcase!");
 					return true;
 				}else if(args[0].equalsIgnoreCase("addcommand")){
@@ -163,6 +218,36 @@ public class StandShowcase extends JavaPlugin {
 					sender.sendMessage(ChatColor.GREEN + "Right click the stand you want to open the slide gui on!");
 					sl.slidegui.add((Player)sender);
 					return true;
+				}else if(args[0].equalsIgnoreCase("hardreset")){
+					sender.sendMessage(ChatColor.GREEN + "Hard resetting every armor stand...");
+					int i = 0;
+					for(ArmorStand as : armorstands){
+						for(Entity e : as.getNearbyEntities(0.5, 0.5, 0.5)){
+							if(e instanceof ArmorStand){
+								e.remove();
+								i++;
+							}
+						}
+					}
+					sender.sendMessage(ChatColor.GREEN + "Successfully hard reset " + i + " armor stands");
+					return true;
+				}else if(args[0].equalsIgnoreCase("reload")){
+					reloadConfig();
+					fc = getConfig();
+					debug = fc.getBoolean("Debug");
+					boolean contains = false;
+					String sound = fc.getString("Sounds");
+					for(Sound s : Sound.values()){
+						if(s.name().equalsIgnoreCase(sound))
+							contains = true;
+					}
+					if(contains == false){
+						debugWarning("Error loading sound: Invalid sound name!");
+						sender.sendMessage("§cError loading sound: Invalid sound name!");
+						return true;
+					}else
+						sl.sound = Sound.valueOf(sound);
+					sender.sendMessage(ChatColor.GREEN + "Successfully reloaded configuration files!");
 				}
 			}else if(args.length == 2){
 				if(args[0].equalsIgnoreCase("speed")){
@@ -196,9 +281,11 @@ public class StandShowcase extends JavaPlugin {
 			sender.sendMessage("§0§l/§asc §cspeed §0[§cSpeed§0]");
 			sender.sendMessage("§0§l/§asc §crotation §0[§cRotation§0]");
 			sender.sendMessage("§0§l/§asc §caddslide §0[§cItemName§6:§cData§6/§chand§0]");
-			sender.sendMessage("§0§l/§asc §caddcommand §0[§cPlayer§6/§cConsole0] §0[§cCommand§0]");
+			sender.sendMessage("§0§l/§asc §caddcommand §0[§cPlayer§6/§cConsole§0] §0[§cCommand§0]");
 			sender.sendMessage("§0§l/§asc §cresetslides");
 			sender.sendMessage("§0§l/§asc §cresetcommands");
+			sender.sendMessage("§0§l/§asc §chardreset");
+			sender.sendMessage("§0§l/§asc §creload");
 		}
 		return false;
 	}
@@ -207,16 +294,15 @@ public class StandShowcase extends JavaPlugin {
 		return standid.get(as);
 	}
 	
+	public UUID getUniqueId(int id){
+		return standuuid.get(id);
+	}
+	
 	public ItemStack getItem(String arg, Player p){
 		if(arg.equalsIgnoreCase("hand")){
 			ItemStack is = p.getItemInHand();
 			if(is == null)
 				is = new ItemStack(Material.AIR);
-			Material m = is.getType();
-			if(!m.isBlock() && !m.name().contains("HELMET") && m != Material.SKULL_ITEM){
-				p.sendMessage(ChatColor.RED + "The item must be a block or helmet or skull!");
-				return null;
-			}
 			return is;
 		}else{
 			String[] itemdata = arg.split(":");

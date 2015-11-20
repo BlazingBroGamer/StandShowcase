@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Sound;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -30,6 +31,7 @@ public class StandListener implements Listener{
 	HashMap<Player, ItemStack> slideadd = new HashMap<Player, ItemStack>();
 	HashMap<Player, String> commandadd = new HashMap<Player, String>();
 	StandGUI gui;
+	Sound sound;
 	
 	public StandListener(StandShowcase plugin){
 		this.plugin = plugin;
@@ -40,17 +42,27 @@ public class StandListener implements Listener{
 		ad = plugin.ad;
 		gui = plugin.gui;
 		slidegui = new ArrayList<Player>();
+		String sound = plugin.fc.getString("Sounds").toUpperCase().replaceAll(" ", "_");
+		boolean contains = false;
+		for(Sound s : Sound.values()){
+			if(s.name().equalsIgnoreCase(sound))
+				contains = true;
+		}
+		if(contains == false)
+			plugin.debugWarning("Error loading sound: Invalid sound name!");
+		else
+			this.sound = Sound.valueOf(sound);
 	}
 	
 	@EventHandler
 	public void onInteract(PlayerInteractAtEntityEvent e){
+		Player p = e.getPlayer();
 		if(e.getRightClicked() instanceof ArmorStand){
 			ArmorStand as = (ArmorStand)e.getRightClicked();
 			if(plugin.armorstands.contains(as)){
 				int standid = plugin.getStandID(as);
 				StandType st = ad.getType(standid);
 				e.setCancelled(true);
-				Player p = e.getPlayer();
 				if(delete.contains(p)){
 					delete.remove(p);
 					plugin.armorstands.remove(as);
@@ -107,7 +119,9 @@ public class StandListener implements Listener{
 						int nextslide = plugin.p.getNextSlide(as);
 						plugin.p.setSlide(as, nextslide);
 						as.setHelmet(plugin.p.getSlideItem(as));
+						playSound(p);
 					}else if(st == StandType.COMMAND){
+						playSound(p);
 						for(String s : ad.getCommands(standid)){
 							if(s.startsWith("console")){
 								Bukkit.dispatchCommand(Bukkit.getConsoleSender(), s.split(" ", 2)[1]
@@ -121,19 +135,23 @@ public class StandListener implements Listener{
 				return;
 			}
 		}
-		if(delete.contains(e.getPlayer())){
+		if(delete.contains(p) || slidegui.contains(p) || slideadd.containsKey(p) || commandadd.containsKey(p)
+				|| resetcmd.contains(p) || resetslide.contains(p)){
 			delete.remove(e.getPlayer());
 			e.getPlayer().sendMessage(ChatColor.RED + "That is not a showcasing armorstand!");
 			return;
 		}
 	}
 	
+	public void playSound(Player p){
+		p.playSound(p.getLocation(), sound, 1, 0);
+	}
+	
 	@EventHandler
 	public void onDamage(EntityDamageByEntityEvent e){
 		if(e.getEntity() instanceof ArmorStand){
-			if(plugin.armorstands.contains(e.getEntity())){
+			if(plugin.armorstands.contains(e.getEntity()))
 				e.setCancelled(true);
-			}
 		}
 	}
 	
@@ -141,10 +159,11 @@ public class StandListener implements Listener{
 	public void onChunkUnload(ChunkUnloadEvent e){
 		for(Entity ent : e.getChunk().getEntities()){
 			if(ent instanceof ArmorStand){
-				if(plugin.armorstands.contains(ent)){
-					plugin.despawned.put(ent.getUniqueId(), plugin.getStandID((ArmorStand)ent));
-					plugin.armorstands.remove((ArmorStand)ent);
-					plugin.standid.remove((ArmorStand)ent);
+				ArmorStand as = (ArmorStand)ent;
+				if(plugin.armorstands.contains(as)){
+					plugin.despawned.put(as, plugin.getStandID((ArmorStand)ent));
+					plugin.standid.remove(as);
+					plugin.armorstands.remove(as);
 				}
 			}
 		}
@@ -154,11 +173,15 @@ public class StandListener implements Listener{
 	public void onChunkLoad(ChunkLoadEvent e){
 		for(Entity ent : e.getChunk().getEntities()){
 			if(ent instanceof ArmorStand){
-				UUID id = ent.getUniqueId();
-				if(plugin.despawned.keySet().contains(id)){
-					plugin.armorstands.add((ArmorStand)ent);
-					plugin.standid.put((ArmorStand)ent, plugin.despawned.get(id));
-					plugin.despawned.remove(id);
+				ArmorStand as = (ArmorStand)ent;
+				UUID id = as.getUniqueId();
+				for(ArmorStand pas : plugin.despawned.keySet()){
+					if(pas.getUniqueId().equals(id)){
+						plugin.armorstands.add(as);
+						plugin.standid.put(as, plugin.despawned.get(id));
+						plugin.despawned.remove(pas);
+						return;
+					}
 				}
 			}
 		}

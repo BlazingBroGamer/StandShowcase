@@ -45,9 +45,6 @@ public class Updater {
 	
 	public void updateDirection(){
 		for(ArmorStand as : plugin.armorstands){
-			if(!as.isValid()){
-				
-			}
 			as.setHeadPose(as.getHeadPose().setY(crotation));
 		}
 	}
