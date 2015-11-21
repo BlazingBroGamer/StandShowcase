@@ -11,7 +11,6 @@ import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.Sound;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -47,6 +46,10 @@ public class StandShowcase extends JavaPlugin {
 		fc.addDefault("Speed", 1);
 		fc.addDefault("Sounds", "Click");
 		fc.addDefault("Debug", true);
+		fc.addDefault("Particle.Type", "Smoke");
+		fc.addDefault("Particle.Data", 0);
+		fc.addDefault("Particle.Amount", 10);
+		fc.addDefault("Particle.Offset", 2.25);
 		fc.options().copyDefaults(true);
 		saveConfig();
 		debug = fc.getBoolean("Debug");
@@ -82,6 +85,7 @@ public class StandShowcase extends JavaPlugin {
 							standid.put(as, i);
 							standuuid.put(i, id);
 							ad.addSlideItem(as.getHelmet(), i);
+							ad.parseData(i);
 							changed = true;
 						}
 					}
@@ -112,11 +116,15 @@ public class StandShowcase extends JavaPlugin {
 		int i = 1;
 		for(ArmorStand as : armorstands){
 			debugInfo("Saving stand with ID: " + i);
+			p.setSlide(as, 0);
+			as.setHelmet(p.getSlideItem(as));
 			ad.saveArmorData(as, i);
 			i++;
 		}
 		for(ArmorStand as : despawned.keySet()){
 			debugInfo("Saving stand with ID: " + i);
+			p.setSlide(as, 0);
+			as.setHelmet(p.getSlideItem(as));
 			ad.saveArmorData(as, i);
 			i++;
 		}
@@ -182,14 +190,6 @@ public class StandShowcase extends JavaPlugin {
 					sender.sendMessage(ChatColor.GREEN + "Right click the armor stand you want to delete!");
 					sl.delete.add((Player)sender);
 					return true;
-				}else if(args[0].equalsIgnoreCase("reload")){
-					reloadConfig();
-					fc = getConfig();
-					u.rotation = fc.getDouble("Rotation");
-					u.speed = fc.getLong("Speed");
-					u.restartUpdater();
-					sender.sendMessage(ChatColor.GREEN + "Successfully reloaded the configuration!");
-					return true;
 				}else if(args[0].equalsIgnoreCase("align")){
 					u.alignDirections();
 					sender.sendMessage(ChatColor.GREEN + "Successfully aligned stand directions!");
@@ -224,8 +224,10 @@ public class StandShowcase extends JavaPlugin {
 					for(ArmorStand as : armorstands){
 						for(Entity e : as.getNearbyEntities(0.5, 0.5, 0.5)){
 							if(e instanceof ArmorStand){
-								e.remove();
-								i++;
+								if(!armorstands.contains((ArmorStand)e)){
+									e.remove();
+									i++;
+								}
 							}
 						}
 					}
@@ -235,19 +237,13 @@ public class StandShowcase extends JavaPlugin {
 					reloadConfig();
 					fc = getConfig();
 					debug = fc.getBoolean("Debug");
-					boolean contains = false;
-					String sound = fc.getString("Sounds");
-					for(Sound s : Sound.values()){
-						if(s.name().equalsIgnoreCase(sound))
-							contains = true;
-					}
-					if(contains == false){
-						debugWarning("Error loading sound: Invalid sound name!");
-						sender.sendMessage("§cError loading sound: Invalid sound name!");
-						return true;
-					}else
-						sl.sound = Sound.valueOf(sound);
+					sl.loadParticle();
+					sl.loadSound();
+					u.rotation = fc.getDouble("Rotation");
+					u.speed = fc.getLong("Speed");
+					u.restartUpdater();
 					sender.sendMessage(ChatColor.GREEN + "Successfully reloaded configuration files!");
+					return true;
 				}
 			}else if(args.length == 2){
 				if(args[0].equalsIgnoreCase("speed")){

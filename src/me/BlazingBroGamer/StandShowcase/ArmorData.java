@@ -47,7 +47,9 @@ public class ArmorData {
 		fc.set(section + ".Y", loc.getY());
 		fc.set(section + ".Z", loc.getZ());
 		fc.set(section + ".World", loc.getWorld().getName());
-		fc.set(section + ".Slides", getSlides(id));
+		List<String> slides = getSlides(id);
+		slides.remove(0);
+		fc.set(section + ".Slides", slides);
 		fc.set(section + ".Commands", commands.get(id));
 		fc.set(section + ".UUID", plugin.getUniqueId(id).toString());
 		StandType st = standtype.get(id);
@@ -150,6 +152,16 @@ public class ArmorData {
 				Double.parseDouble(locdata[0]), Double.parseDouble(locdata[1]), Double.parseDouble(locdata[2]));
 		return new StandGenerator(loc, parseItem(slides.get(id).get(0))
 				, data[1]).getStand();
+	}
+	
+	public void parseData(int id){
+		String section = "ArmorStands." + id;
+		List<String> slides = getSlides(id);
+		for(String s : fc.getStringList(section + ".Slides"))
+			slides.add(s);
+		this.slides.put(id, slides);
+		commands.put(id, fc.getStringList(section + ".Commands"));
+		standtype.put(id, StandType.matchType(fc.getString(section + ".Type")));
 	}
 	
 	public UUID parseUUID(int id){

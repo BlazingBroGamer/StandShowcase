@@ -7,6 +7,8 @@ import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Effect;
+import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
@@ -32,6 +34,9 @@ public class StandListener implements Listener{
 	HashMap<Player, String> commandadd = new HashMap<Player, String>();
 	StandGUI gui;
 	Sound sound;
+	Effect e;
+	int particledata = 0;
+	double offset = 2.25;
 	
 	public StandListener(StandShowcase plugin){
 		this.plugin = plugin;
@@ -42,16 +47,47 @@ public class StandListener implements Listener{
 		ad = plugin.ad;
 		gui = plugin.gui;
 		slidegui = new ArrayList<Player>();
-		String sound = plugin.fc.getString("Sounds").toUpperCase().replaceAll(" ", "_");
+		loadParticle();
+		loadSound();
+	}
+	
+	public void loadParticle(){
+		e = null;
 		boolean contains = false;
-		for(Sound s : Sound.values()){
-			if(s.name().equalsIgnoreCase(sound))
+		String effect = plugin.fc.getString("Particle.Type").replaceAll(" ", "_");
+		if(effect.equalsIgnoreCase("nothing"))
+			return;
+		for(Effect e2 : Effect.values()){
+			if(e2.name().equalsIgnoreCase(effect)){
 				contains = true;
+				this.e = e2;
+			}
+		}
+		if(contains == false)
+			plugin.debugWarning("Error loading sound: Invalid particle name!");
+		else{
+			plugin.debugInfo("Loaded particle: " + effect);
+			particledata = plugin.fc.getInt("Particle.Data");
+			offset = plugin.fc.getDouble("Particle.Offset");
+		}
+	}
+	
+	public void loadSound(){
+		this.sound = null;
+		String sound = plugin.fc.getString("Sounds").replaceAll(" ", "_");
+		boolean contains = false;
+		if(sound.equalsIgnoreCase("nothing"))
+			return;
+		for(Sound s : Sound.values()){
+			if(s.name().equalsIgnoreCase(sound)){
+				contains = true;
+				this.sound = s;
+			}
 		}
 		if(contains == false)
 			plugin.debugWarning("Error loading sound: Invalid sound name!");
 		else
-			this.sound = Sound.valueOf(sound);
+			plugin.debugInfo("Loaded sound: " + sound);
 	}
 	
 	@EventHandler
@@ -120,8 +156,10 @@ public class StandListener implements Listener{
 						plugin.p.setSlide(as, nextslide);
 						as.setHelmet(plugin.p.getSlideItem(as));
 						playSound(p);
+						playParticle(as);
 					}else if(st == StandType.COMMAND){
 						playSound(p);
+						playParticle(as);
 						for(String s : ad.getCommands(standid)){
 							if(s.startsWith("console")){
 								Bukkit.dispatchCommand(Bukkit.getConsoleSender(), s.split(" ", 2)[1]
@@ -143,8 +181,20 @@ public class StandListener implements Listener{
 		}
 	}
 	
+	public void playParticle(ArmorStand as){
+		Location loc = as.getLocation();
+		loc.setY(loc.getY() + offset);
+		int amount = plugin.fc.getInt("Particle.Amount");
+		if(e != null)
+			while(amount > 0){
+				as.getWorld().playEffect(loc, e, particledata);
+				amount--;
+			}
+	}
+	
 	public void playSound(Player p){
-		p.playSound(p.getLocation(), sound, 1, 0);
+		if(sound != null)
+			p.playSound(p.getLocation(), sound, 1, 0);
 	}
 	
 	@EventHandler
@@ -162,7 +212,6 @@ public class StandListener implements Listener{
 				ArmorStand as = (ArmorStand)ent;
 				if(plugin.armorstands.contains(as)){
 					plugin.despawned.put(as, plugin.getStandID((ArmorStand)ent));
-					plugin.standid.remove(as);
 					plugin.armorstands.remove(as);
 				}
 			}
@@ -178,7 +227,7 @@ public class StandListener implements Listener{
 				for(ArmorStand pas : plugin.despawned.keySet()){
 					if(pas.getUniqueId().equals(id)){
 						plugin.armorstands.add(as);
-						plugin.standid.put(as, plugin.despawned.get(id));
+						plugin.standid.put(as, plugin.despawned.get(pas));
 						plugin.despawned.remove(pas);
 						return;
 					}
